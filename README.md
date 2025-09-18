@@ -230,3 +230,20 @@ python3 evaluate_model.py \
 - **FID Score**: 15-25 (lower is better)
 - **LPIPS Diversity**: 0.3-0.5 (higher is better)
 - **Semantic Consistency**: 0.6-0.8 (higher is better)
+## Citation
+
+If you use this implementation, please cite:
+
+```bibtex
+@article{wang2022semantic,
+  title={Semantic Image Synthesis via Diffusion Models},
+  author={Wang, Weilun and Bao, Jianmin and Zhou, Wengang and Chen, Dongdong and Chen, Dong and Yuan, Lu and Li, Houqiang},
+  journal={arXiv preprint arXiv:2207.00050},
+  year={2022}
+}
+```
+
+## License
+
+This project is for research and educational purposes. Please respect the licenses of the original dataset and model implementations.
+
