@@ -1,85 +1,232 @@
-Semantic Image Synthesis with Diffusion Models
+# Semantic Diffusion Model Training - Complete Documentation
 
-Author: Aum Chavda | LinkedIn 
-Project Overview
+## Overview
 
-This project is a complete implementation of the "Semantic Image Synthesis via Diffusion Models" paper, focused on generating high-resolution, photorealistic images from semantic segmentation masks. The primary goal is to leverage a state-of-the-art diffusion model to augment computer vision datasets, thereby improving the performance and generalization of segmentation models.
+This repository contains a complete implementation for training a **Semantic Diffusion Model** on the HuggingFace sidewalk dataset, converting it to 1024×1024 resolution with colored semantic masks, and generating 5 new images per sample using multiple A100 GPUs.
 
-The entire pipeline, from data preparation to distributed training and evaluation, has been built to run on a multi-GPU High-Performance Computing (HPC) cluster.
-Key Features
+Based on the paper: **"Semantic Image Synthesis via Diffusion Models"** by Wang et al.
 
-    High-Resolution Synthesis: Generates 1024x1024 pixel images that are semantically consistent with input masks.
+## System Requirements
 
-    Dataset Augmentation: Trained on the HuggingFace Sidewalk dataset to create novel training examples.
+### Hardware
+- **GPUs**: 8× NVIDIA A100 80GB (university HPC cluster)
+- **Memory**: 64GB+ system RAM
+- **Storage**: 1TB+ fast SSD storage
+- **Network**: High-bandwidth connection for dataset download
 
-    State-of-the-Art Architecture: Implements a U-Net backbone with Spatially-Adaptive (SPADE) normalization to inject semantic information.
+### Software
+- **OS**: Linux (Ubuntu 20.04+ recommended)
+- **CUDA**: 11.8+
+- **Python**: 3.9
+- **PyTorch**: 2.0+
+- **Conda/Miniconda**: Latest version
 
-    Distributed Training: Utilizes PyTorch accelerate for efficient multi-GPU training (8x NVIDIA A100).
+## Project Structure
 
-    Classifier-Free Guidance: Employs fine-tuning with semantic mask dropout to improve image quality and mask adherence.
+```
+semantic-diffusion-sidewalk/
+├── data/
+│   └── sidewalk_processed/          # Processed dataset (1024×1024)
+│       ├── images/                  # RGB images
+│       ├── labels/                  # Semantic masks (grayscale)
+│       ├── colored_masks/           # Colored semantic masks
+│       └── dataset_info.json       # Dataset metadata
+├── checkpoints/
+│   └── semantic_diffusion_1024/     # Model checkpoints
+│       ├── final_model.pth          # Trained model
+│       └── finetuned/               # Fine-tuned model (CFG)
+├── results/
+│   └── generated/                   # Generated images
+│       ├── generated_images/        # Individual samples
+│       └── visualizations/          # Comparison grids
+├── evaluation_results/              # Evaluation metrics
+├── logs/                           # Training logs
+├── scripts/                        # Main scripts
+│   ├── prepare_dataset.py          # Dataset preparation
+│   ├── train_semantic_diffusion.py # Training script
+│   ├── generate_images.py          # Generation script
+│   ├── evaluate_model.py           # Evaluation script
+│   ├── train_multi_gpu.sh          # Multi-GPU training
+│   └── run_complete_pipeline.sh    # Full pipeline
+├── requirements.txt                # Dependencies
+├── setup_environment.sh            # Environment setup
+└── README.md                       # This file
+```
 
-    Comprehensive Evaluation: Measures performance using standard metrics like Fréchet Inception Distance (FID), LPIPS, and Semantic Consistency.
+## Dataset Information
 
-Technology Stack
+### HuggingFace Sidewalk Dataset
+- **Source**: `segments/sidewalk-semantic`
+- **Classes**: 35 semantic classes
+- **Original Resolution**: Variable
+- **Processed Resolution**: 1024×1024
+- **Total Samples**: ~1000+ images
 
-    Core Framework: Python, PyTorch
+### Class Mapping (35 classes)
+```
+0: unlabeled          18: construction-building
+1: flat-road          19: construction-door
+2: flat-sidewalk      20: construction-wall
+3: flat-crosswalk     21: construction-fenceguardrail
+4: flat-cyclinglane   22: construction-bridge
+5: flat-parkingdriveway 23: construction-tunnel
+6: flat-railtrack     24: construction-stairs
+7: flat-curb          25: object-pole
+8: human-person       26: object-trafficsign
+9: human-rider        27: object-trafficlight
+10: vehicle-car       28: nature-vegetation
+11: vehicle-truck     29: nature-terrain
+12: vehicle-bus       30: sky
+13: vehicle-tramtrain 31: void-ground
+14: vehicle-motorcycle 32: void-dynamic
+15: vehicle-bicycle   33: void-static
+16: vehicle-caravan   34: void-unclear
+17: vehicle-cartrailer
+```
 
-    Libraries: Diffusers, Accelerate, NumPy, OpenCV, scikit-image
+## Installation and Setup
 
-    Dataset: HuggingFace Datasets (segments/sidewalk-semantic)
-
-    Hardware/Platform: NVIDIA A100 GPUs, SLURM, Conda
-
-Project Pipeline
-
-The project follows a systematic 4-step pipeline:
-
-    Data Preparation: The script prepare_dataset.py downloads the raw dataset, resizes images and masks to 1024x1024, and creates colored masks for visualization.
-
-    Model Training: The core training logic is in train_semantic_diffusion.py, orchestrated for multi-GPU execution using train_multi_gpu.sh. The model is trained for 50,000 steps, followed by a fine-tuning phase for classifier-free guidance.
-
-    Image Generation: Using the trained checkpoints, generate_images.py takes unseen semantic masks and generates multiple photorealistic images for each.
-
-    Evaluation: evaluate_model.py calculates key metrics to quantitatively assess the quality, diversity, and semantic consistency of the generated images.
-
-Challenges & Key Learnings
-
-    Model Selection: The initial phase involved a deep dive into current literature to select the most suitable architecture. The Semantic Diffusion Model was chosen for its novel use of SPADE normalization in a diffusion context.
-
-    Architectural Implementation: Translating the complex U-Net with SPADE from the research paper into stable, functional PyTorch code was a significant implementation challenge.
-
-    HPC Management: Managing the training pipeline on a SLURM-based HPC cluster required robust scripting for job submission, resource allocation (memory and GPU), and debugging of distributed training errors (e.g., NCCL timeouts).
-
-How to Run
-1. Setup Environment
-
-Clone the repository and set up the Conda environment.
-
-# Clone the project
+### 1. Environment Setup
+```bash
+# Clone repository
 git clone <repository-url>
-cd <repository-directory>
+cd semantic-diffusion-sidewalk
 
-# Create and activate the conda environment
-conda env create -f environment.yml
+# Make scripts executable
+chmod +x *.sh scripts/*.sh
+
+# Run environment setup
+./setup_environment.sh
+
+# Activate environment
 conda activate sdm-training
+```
 
-2. Prepare the Dataset
+### 2. Verify Installation
+```bash
+# Check CUDA availability
+python3 -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, GPUs: {torch.cuda.device_count()}')"
 
-Download and process the dataset from HuggingFace.
+# Check GPU status
+nvidia-smi
+```
 
-python3 scripts/prepare_dataset.py --output_dir ./data/sidewalk_processed
+## Usage
 
-3. Train the Model
+### Option 1: Complete Pipeline (Recommended)
+```bash
+# Run entire pipeline automatically
+./run_complete_pipeline.sh
+```
 
-Launch the distributed training script (configured for 8 GPUs).
+This script will:
+1. Setup environment
+2. Download and process dataset
+3. Train the model
+4. Fine-tune for classifier-free guidance
+5. Generate images
+6. Evaluate results
 
-./scripts/train_multi_gpu.sh
+### Option 2: Step-by-Step Execution
 
-4. Generate Images
+#### Step 1: Dataset Preparation
+```bash
+python3 prepare_dataset.py \
+    --output_dir ./data/sidewalk_processed \
+    --num_workers 8
+```
 
-Use the trained model to generate new images from the test set masks.
+#### Step 2: Model Training
+```bash
+# Multi-GPU training (8 GPUs)
+./train_multi_gpu.sh
 
-python3 scripts/generate_images.py \
+# Or manual training
+accelerate launch --multi_gpu --num_processes=8 \
+    train_semantic_diffusion.py \
+    --data_dir ./data/sidewalk_processed \
+    --output_dir ./checkpoints/semantic_diffusion_1024 \
+    --train_batch_size 2 \
+    --max_train_steps 50000 \
+    --learning_rate 1e-4
+```
+
+#### Step 3: Image Generation
+```bash
+python3 generate_images.py \
     --model_path ./checkpoints/semantic_diffusion_1024/final_model.pth \
     --data_dir ./data/sidewalk_processed \
-    --output_dir ./results/generated
+    --output_dir ./results/generated \
+    --num_samples_per_image 5 \
+    --guidance_scale 1.5
+```
+
+#### Step 4: Evaluation
+```bash
+python3 evaluate_model.py \
+    --data_dir ./data/sidewalk_processed \
+    --generated_dir ./results/generated/generated_images \
+    --results_dir ./evaluation_results
+```
+
+## Model Architecture
+
+### Semantic Diffusion Model Components
+
+#### 1. **U-Net Backbone**
+- **Base Channels**: 256
+- **Channel Multipliers**: [1, 2, 4, 8]
+- **Attention Layers**: At 32×32, 16×16, 8×8 resolutions
+- **ResNet Blocks**: 2 per resolution level
+
+#### 2. **SPADE Normalization**
+- Spatially-Adaptive Normalization in decoder
+- Semantic map conditions normalization parameters
+- Preserves semantic information throughout denoising
+
+#### 3. **Timestep Embedding**
+- Sinusoidal position encoding
+- Injected into encoder via scale-shift normalization
+
+#### 4. **Classifier-Free Guidance**
+- Fine-tuning with 20% semantic mask dropout
+- Guidance scale: 1.5 (configurable)
+
+### Training Configuration
+
+#### Initial Training
+- **Optimizer**: AdamW (lr=1e-4, β₁=0.9, β₂=0.999)
+- **Scheduler**: Cosine with warmup (1000 steps)
+- **Batch Size**: 16 (2 per GPU × 8 GPUs)
+- **Steps**: 50,000
+- **Mixed Precision**: FP16
+- **Gradient Clipping**: 1.0
+
+#### Fine-tuning (Classifier-Free Guidance)
+- **Optimizer**: AdamW (lr=2e-5)
+- **Dropout Rate**: 0.2
+- **Steps**: 10,000
+- **Purpose**: Enable conditional/unconditional generation
+
+### Diffusion Parameters
+- **Timesteps**: 1000 (training), 50 (sampling)
+- **Noise Schedule**: Linear (β₁=0.0001, β₁=0.02)
+- **Prediction Type**: ε-prediction (noise)
+
+## Performance Specifications
+
+### Training Performance (8× A100 80GB)
+- **Memory Usage**: ~60GB per GPU
+- **Training Time**: ~24-48 hours (50k steps)
+- **Fine-tuning Time**: ~8-12 hours (10k steps)
+- **Throughput**: ~16 samples/second
+
+### Generation Performance
+- **Generation Time**: ~30-60 seconds per image (50 steps)
+- **Memory Usage**: ~40GB
+- **Batch Generation**: 5 images simultaneously
+
+### Expected Results
+- **FID Score**: 15-25 (lower is better)
+- **LPIPS Diversity**: 0.3-0.5 (higher is better)
+- **Semantic Consistency**: 0.6-0.8 (higher is better)
