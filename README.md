@@ -230,6 +230,181 @@ python3 evaluate_model.py \
 - **FID Score**: 15-25 (lower is better)
 - **LPIPS Diversity**: 0.3-0.5 (higher is better)
 - **Semantic Consistency**: 0.6-0.8 (higher is better)
+
+## File Descriptions
+
+### Core Scripts
+
+#### `prepare_dataset.py`
+- Downloads HuggingFace sidewalk dataset
+- Resizes images to 1024×1024
+- Creates colored semantic masks
+- Generates dataset statistics
+
+#### `train_semantic_diffusion.py`
+- Main training script
+- Implements SPADE-based U-Net
+- Supports distributed training
+- Integrates with Weights & Biases
+
+#### `generate_images.py`
+- Image generation from trained models
+- Supports classifier-free guidance
+- Batch generation capabilities
+- Creates visualization grids
+
+#### `evaluate_model.py`
+- Comprehensive evaluation suite
+- FID, LPIPS, semantic consistency
+- Generates evaluation reports
+
+### Utility Scripts
+
+#### `train_multi_gpu.sh`
+- Multi-GPU training orchestration
+- Environment variable setup
+- Logging and monitoring
+
+#### `run_complete_pipeline.sh`
+- End-to-end pipeline execution
+- Error handling and recovery
+- Progress tracking
+
+## Evaluation Metrics
+
+### 1. Fréchet Inception Distance (FID)
+- **Purpose**: Measures image quality and diversity
+- **Range**: 0-∞ (lower better)
+- **Target**: < 30 for good results
+
+### 2. LPIPS Diversity
+- **Purpose**: Measures generation diversity
+- **Range**: 0-1 (higher better)
+- **Target**: > 0.3 for good diversity
+
+### 3. Semantic Consistency
+- **Purpose**: Adherence to input semantic layout
+- **Method**: Segmentation model evaluation
+- **Target**: > 0.6 for good consistency
+
+## Troubleshooting
+
+### Common Issues
+
+#### Out of Memory Errors
+```bash
+# Reduce batch size
+export BATCH_SIZE=1
+
+# Enable gradient checkpointing
+export USE_CHECKPOINT=true
+
+# Use CPU offloading
+export OFFLOAD_TO_CPU=true
+```
+
+#### NCCL Communication Errors
+```bash
+# Set NCCL debug
+export NCCL_DEBUG=INFO
+export NCCL_TIMEOUT=300
+
+# Use different backend
+export NCCL_BACKEND=gloo
+```
+
+#### Dataset Access Issues
+```bash
+# Login to HuggingFace
+huggingface-cli login
+
+# Request dataset access
+# Visit: https://huggingface.co/datasets/segments/sidewalk-semantic
+```
+
+### Performance Optimization
+
+#### Memory Optimization
+- Use gradient accumulation: `--gradient_accumulation_steps 4`
+- Enable mixed precision: `--mixed_precision fp16`
+- Use gradient checkpointing: `--use_checkpoint`
+
+#### Speed Optimization
+- Increase number of workers: `--num_workers 16`
+- Use faster storage (NVMe SSD)
+- Enable compilation: `torch.compile(model)`
+
+## Remote GPU Access Setup
+
+### SSH Configuration
+```bash
+# Connect to university cluster
+ssh username@cluster.university.edu
+
+# Set up port forwarding for monitoring
+ssh -L 8080:localhost:8080 username@cluster.university.edu
+```
+
+### SLURM Job Submission
+```bash
+# Create SLURM script
+cat > submit_training.sbatch << EOF
+#!/bin/bash
+#SBATCH --job-name=semantic_diffusion
+#SBATCH --nodes=1
+#SBATCH --gres=gpu:a100:8
+#SBATCH --time=72:00:00
+#SBATCH --mem=512GB
+#SBATCH --cpus-per-task=64
+
+module load cuda/11.8
+source ~/.bashrc
+conda activate sdm-training
+
+./run_complete_pipeline.sh
+EOF
+
+# Submit job
+sbatch submit_training.sbatch
+```
+
+### Monitoring
+```bash
+# Check job status
+squeue -u username
+
+# Monitor GPU usage
+nvidia-smi -l 1
+
+# View logs
+tail -f logs/training_*.log
+
+# Check Weights & Biases
+# Visit: https://wandb.ai
+```
+
+## Results and Output
+
+### Generated Files
+- **Training Logs**: `logs/training_*.log`
+- **Model Checkpoints**: `checkpoints/semantic_diffusion_1024/`
+- **Generated Images**: `results/generated/generated_images/`
+- **Visualizations**: `results/generated/visualizations/`
+- **Evaluation Report**: `evaluation_results/evaluation_report.txt`
+
+### Sample Output Structure
+```
+results/generated/generated_images/
+├── sample_000001/
+│   ├── generated_00.png
+│   ├── generated_01.png
+│   ├── generated_02.png
+│   ├── generated_03.png
+│   └── generated_04.png
+├── sample_000002/
+│   └── ...
+```
+
 ## Citation
 
 If you use this implementation, please cite:
@@ -247,3 +422,17 @@ If you use this implementation, please cite:
 
 This project is for research and educational purposes. Please respect the licenses of the original dataset and model implementations.
 
+## Support
+
+For issues and questions:
+1. Check the troubleshooting section
+2. Review log files for specific errors
+3. Verify system requirements and setup
+4. Consult original paper and HuggingFace documentation
+
+## Acknowledgments
+
+- Original Semantic Diffusion Model authors
+- HuggingFace for the sidewalk dataset
+- University HPC cluster for computational resources
+- PyTorch and diffusers library developers
